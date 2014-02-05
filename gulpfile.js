@@ -6,17 +6,22 @@ var fs = require('fs');
 var Sequelize = require('sequelize');
 var replace = require('gulp-replace');
 var _ = require('lodash');
+var path = require('path');
+
+var BUILD_PATH = 'build';
+var RESOURCES_PATH = path.join(BUILD_PATH, 'Sinon.JS.docset/Contents/Resources');
+var DOCUMENTS_PATH = path.join(RESOURCES_PATH, 'Documents');
 
 // Clean build folder
 gulp.task('clean-build', function() {
-  return gulp.src('build/**/*', {read: false})
+  return gulp.src(BUILD_PATH + '/**/*', {read: false})
     .pipe(clean());
 });
 
 // Copy template
 gulp.task('copy-template', ['clean-build'], function() {
   return gulp.src('template/**/*')
-    .pipe(gulp.dest('build/'));
+    .pipe(gulp.dest(BUILD_PATH));
 });
 
 // Download sinonjs.org docs
@@ -27,7 +32,7 @@ gulp.task('wget-download', ['copy-template'], function(cb) {
     '-k', // Fix links (to make sure that they will work locally)
     '-p', // --page-requisites (all required files to show this page)
     '-E', // Force to add .css, .js extensions
-    '-P', 'build/Sinon.JS.docset/Contents/Resources/Documents/', // Download to documents folder
+    '-P', DOCUMENTS_PATH, // Download to documents folder
     'http://sinonjs.org/docs/' // What to download
   ]
   spawn( 'wget', args, { stdio: 'inherit' })
@@ -37,16 +42,18 @@ gulp.task('wget-download', ['copy-template'], function(cb) {
 
 // Add ids for all methods
 gulp.task('fix-indexes', ['wget-download'], function() {
-  return gulp.src(['./build/Sinon.JS.docset/Contents/Resources/Documents/index.html'])
-    .pipe(replace(/<dt><code>((var \w+ = )?([a-z\.]+)(\([a-z\d, \."]*\))?;?)<\/code><\/dt>/ig, '<dt id="$3"><code>$1</code></dt>'))
-    .pipe(gulp.dest('./build/Sinon.JS.docset/Contents/Resources/Documents/'));
+  return gulp.src([path.join(DOCUMENTS_PATH, 'index.html')])
+    .pipe(
+      replace(
+        /<dt><code>((var \w+ = )?([a-z\.]+)(\([a-z\d, \."]*\))?;?)<\/code><\/dt>/ig, 
+        '<dt id="$3"><a name="//apple_ref/cpp/Function/$3" class="dashAnchor"><code>$1</code></a></dt>'
+      )
+    )
+    .pipe(gulp.dest(DOCUMENTS_PATH));
 });
 
 gulp.task('build-index', ['fix-indexes'], function(cb) {
-  var databaseFile = './build/Sinon.JS.docset/Contents/Resources/docSet.dsidx';
-  var indexLogFile = './build/index.log';
-
-  var data = fs.readFileSync('./build/Sinon.JS.docset/Contents/Resources/Documents/index.html');
+  var data = fs.readFileSync(path.join(DOCUMENTS_PATH, 'index.html'));
 
   var indexes = {};
 
@@ -72,26 +79,22 @@ gulp.task('build-index', ['fix-indexes'], function(cb) {
         indexes[index.name] = index;
       }
 
-      fs.appendFileSync(indexLogFile, JSON.stringify(index) + '\n');
+      fs.appendFileSync(path.join(BUILD_PATH, 'index.log'), JSON.stringify(index) + '\n');
     }
   }
 
   buildIndexes(
-    /<dt\b[^>]*id="([\w\.\-]+)"[^>]*><code>((var \w+ = )?([\w\.]+)(\([\w, \."]*\))?;?)<\/code><\/dt>/ig,
+    /<dt\b[^>]*id="([\w\.\-]+)"[^>]*><a\b[^>]*><code>((var \w+ = )?([\w\.]+)(\([\w, \."]*\))?;?)<\/code><\/a><\/dt>/ig,
     /* nameMatch: */ 4, /* pathMatch: */ 1, 'Function'
   );
   buildIndexes(
     /<div\b[^<>]*id="([\w\.\-]+)"[^>]*>\s*<h2\b[^>]*>(([^<>]|<code>|<\/code>)*)(<a\b[^>]*>(.*)<\/a>)?<\/h2>/ig,
-    /* nameMatch: */ 2, /* pathMatch: */ 1, 'Section'
-  );
-  buildIndexes(
-    /<h3\b[^<>]*id="([\w\.\-]+)"[^>]*>(.*)<\/h3>/ig,
     /* nameMatch: */ 2, /* pathMatch: */ 1, 'Guide'
   );
 
   var seq = new Sequelize('database', 'username', 'password', {
     dialect: 'sqlite',
-    storage: databaseFile
+    storage: path.join(RESOURCES_PATH, 'docSet.dsidx')
   });
 
   // Copy to DB
