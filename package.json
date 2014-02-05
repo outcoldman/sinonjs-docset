@@ -1,0 +1,23 @@
+{
+  "name": "sinonjs-docset",
+  "version": "0.0.0",
+  "description": "",
+  "main": "buildIndex.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "sequelize": "~1.7.0-rc4",
+    "sqlite3": "~2.2.0",
+    "lodash": "~2.4.1",
+    "gulp-util": "~2.2.14",
+    "gulp": "~3.5.1",
+    "gulp-exec": "~1.0.4",
+    "gulp-clean": "~0.2.4",
+    "gulp-download": "0.0.1",
+    "gulp-frep": "~0.1.0",
+    "gulp-replace": "~0.2.0"
+  }
+}
