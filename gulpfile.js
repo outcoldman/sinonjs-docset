@@ -12,6 +12,8 @@ var BUILD_PATH = 'build';
 var RESOURCES_PATH = path.join(BUILD_PATH, 'Sinon.JS.docset/Contents/Resources');
 var DOCUMENTS_PATH = path.join(RESOURCES_PATH, 'Documents');
 
+var FEEDS_PATH = 'feeds';
+
 // Clean build folder
 gulp.task('clean-build', function() {
   return gulp.src(BUILD_PATH + '/**/*', {read: false})
@@ -117,6 +119,35 @@ gulp.task('build-index', ['fix-indexes'], function(cb) {
   });
 });
 
+gulp.task('create-feed', ['build-index'], function(cb) {
+  if (fs.existsSync(path.join(FEEDS_PATH, 'sinon.js.tgz'))) {
+    fs.unlinkSync(path.join(FEEDS_PATH, 'sinon.js.tgz'));
+  }
+
+  var args = [
+    '--exclude=".DS_Store"', 
+    '-cvzf', path.join(FEEDS_PATH, 'sinon.js.tgz'),
+    path.join(BUILD_PATH, 'Sinon.JS.docset')
+  ]
+  spawn( 'tar', args, { stdio: 'inherit' })
+    .on('error', cb)
+    .on('exit', function(code) { cb(code === 0 ? null : code); });
+});
+
+gulp.task('update-feed-version', ['wget-download'], function() {
+  var data = fs.readFileSync(path.join(DOCUMENTS_PATH, 'sinon.js'));
+  var versionMatch = /^ \* Sinon.JS ([\d\.]+),/m.exec(data);
+console.log(JSON.stringify(versionMatch));
+  return gulp.src([path.join(FEEDS_PATH, 'sinon.js.xml')])
+    .pipe(
+      replace(
+        /<version>([\d\.]+)<\/version>/ig, 
+        '<version>' + versionMatch[1] + '</version>'
+      )
+    )
+    .pipe(gulp.dest(FEEDS_PATH));
+});
+
 gulp.task(
   'build', 
   [
@@ -124,6 +155,8 @@ gulp.task(
     'copy-template', 
     'wget-download', 
     'fix-indexes',
-    'build-index'
+    'build-index',
+    'create-feed',
+    'update-feed-version'
   ]
 );
