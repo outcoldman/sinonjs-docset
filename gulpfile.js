@@ -137,7 +137,7 @@ gulp.task('create-feed', ['build-index'], function(cb) {
 gulp.task('update-feed-version', ['wget-download'], function() {
   var data = fs.readFileSync(path.join(DOCUMENTS_PATH, 'sinon.js'));
   var versionMatch = /^ \* Sinon.JS ([\d\.]+),/m.exec(data);
-console.log(JSON.stringify(versionMatch));
+
   return gulp.src([path.join(FEEDS_PATH, 'sinon.js.xml')])
     .pipe(
       replace(
